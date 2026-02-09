@@ -1,0 +1,16 @@
+{
+  "name": "mapgen-web-demo",
+  "version": "0.1.0",
+  "description": "Web demo for mapgen procedural world generator",
+  "scripts": {
+    "build": "wasm-pack build --target web --out-dir pkg && cp -r www/* pkg/",
+    "dev": "npm run build && python3 -m http.server 8080 --directory pkg",
+    "serve": "python3 -m http.server 8080 --directory pkg"
+  },
+  "keywords": ["wasm", "rust", "procedural-generation", "mapgen"],
+  "author": "Your Name",
+  "license": "MIT OR Apache-2.0",
+  "devDependencies": {
+    "wasm-pack": "^0.12.1"
+  }
+}
