@@ -16,42 +16,111 @@
             <p>Procedural world generation in your browser using Rust + WASM</p>
         </header>
 
-        <main>
-            <div class="status" id="status">
-                <div class="status-icon">⏳</div>
-                <div class="status-text">Loading WASM module...</div>
+        <div class="main-layout">
+            <!-- Левая колонка: карта -->
+            <div class="map-area">
+                <div class="status" id="status">
+                    <div class="status-icon">⏳</div>
+                    <div class="status-text">Loading WASM module...</div>
+                </div>
+
+                <div class="canvas-container">
+                    <canvas id="map-canvas"></canvas>
+                    <div class="canvas-overlay" id="canvas-overlay">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text">Generating world... (may take 10-30 seconds)</div>
+                    </div>
+                </div>
+
+                <div class="debug" id="debug"></div>
             </div>
 
-            <button id="test-btn" disabled>Test WASM (greet)</button>
-            <button id="generate-btn" disabled>Generate Heightmap</button>
+            <!-- Правая колонка: панель управления -->
+            <div class="control-panel">
+                <h2 style="margin-bottom: 20px; color: #667eea;">🎛️ World Generator</h2>
 
-            <div class="canvas-container">
-                <canvas id="map-canvas" width="800" height="400"></canvas>
-                <div class="canvas-overlay" id="canvas-overlay">
-                    <div class="loading-spinner"></div>
-                    <div class="loading-text">Generating world...</div>
+                <div class="controls">
+                    <div class="control-group">
+                        <label for="seed-input">
+                            <span class="label-text">Seed:</span>
+                            <input type="number" id="seed-input" value="42" min="0" max="4294967295">
+                        </label>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="temp-slider">
+                            <span class="label-text">Temperature:</span>
+                            <input type="range" id="temp-slider" min="-1" max="1" step="0.1" value="0">
+                            <span class="value-display" id="temp-value">0.0</span>
+                        </label>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="humid-slider">
+                            <span class="label-text">Humidity:</span>
+                            <input type="range" id="humid-slider" min="-1" max="1" step="0.1" value="0">
+                            <span class="value-display" id="humid-value">0.0</span>
+                        </label>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="width-input">
+                            <span class="label-text">Width:</span>
+                            <input type="number" id="width-input" value="400" min="256" max="1024" step="64">
+                        </label>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="height-input">
+                            <span class="label-text">Height:</span>
+                            <input type="number" id="height-input" value="200" min="128" max="512" step="64">
+                        </label>
+                    </div>
+
+                    <button id="generate-btn" class="primary-btn">Generate World</button>
+                    <button id="random-seed-btn" class="secondary-btn">🎲 Random Seed</button>
                 </div>
             </div>
-
-            <div class="debug" id="debug"></div>
-        </main>
+        </div>
 
         <footer>
             <p>
-                Powered by <a href="https://github.com/san-smith/mapgen" target="_blank">mapgen</a> •
-                <a href="https://github.com/san-smith/mapgen-web-demo" target="_blank">Source Code</a>
+                Powered by <a href="https://github.com/YOUR_USERNAME/mapgen" target="_blank">mapgen</a> •
+                <a href="https://github.com/YOUR_USERNAME/mapgen-web-demo" target="_blank">Source Code</a>
             </p>
         </footer>
     </div>
 
     <script type="module">
         // Импортируем функции из нашего WASM-модуля
-        import init, { greet, generate_heightmap_simple } from './mapgen.js';
+        import init, {
+            greet,
+            generate_heightmap_simple,
+            generate_world_with_config
+        } from './mapgen.js';
 
-        // Глобальные переменные (аналог _MyAppState в Flutter)
+        // Глобальные переменные
         let canvas, ctx;
+        let currentWorldData = null;
         const statusEl = document.getElementById('status');
         const debugEl = document.getElementById('debug');
+
+        function handleResize() {
+            const canvas = document.getElementById('map-canvas');
+            const container = document.querySelector('.canvas-container');
+
+            // УСТАНАВЛИВАЕМ ЛОГИЧЕСКИЕ РАЗМЕРЫ КАНВАСА РАВНЫМИ РАЗМЕРАМ КОНТЕЙНЕРА
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+
+            // Перерисовываем карту только если она существует
+            if (currentWorldData) {
+                renderHeightmap(currentWorldData);
+            }
+        }
+
+        window.addEventListener('resize', handleResize);
+        handleResize();
 
         // Инициализация приложения
         async function initApp() {
@@ -67,10 +136,6 @@
                 // Инициализируем канвас
                 canvas = document.getElementById('map-canvas');
                 ctx = canvas.getContext('2d');
-
-                // Включаем кнопки
-                document.getElementById('test-btn').disabled = false;
-                document.getElementById('generate-btn').disabled = false;
 
                 // Тестируем связь с WASM
                 const greeting = greet('Browser');
@@ -91,39 +156,89 @@
 
         // Логирование в отладочную панель
         function logDebug(message) {
-            const timestamp = new Date().toLocaleTimeString();
-            debugEl.innerHTML += `[${timestamp}] ${message}<br>`;
+            const timestamp = new Date().toLocaleTimeString('en-US', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+
+            const isWarning = message.includes('⚠️') || message.includes('Error');
+            const isError = message.includes('❌') || message.includes('failed');
+            const color = isError ? '#dc3545' : isWarning ? '#ffc107' : '#28a745';
+
+            debugEl.innerHTML += `<span style="color: ${color};">[${timestamp}] ${message}</span><br>`;
             debugEl.scrollTop = debugEl.scrollHeight;
         }
 
-        // Тестовая функция
-        document.getElementById('test-btn').addEventListener('click', () => {
-            const name = prompt('Enter your name:', 'World');
-            const greeting = greet(name || 'World');
-            alert(greeting);
-            logDebug(`💬 Greeting: ${greeting}`);
+        // Обновление отображения значений ползунков
+        document.getElementById('temp-slider').addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            document.getElementById('temp-value').textContent = value.toFixed(1);
         });
 
-        // Генерация карты высот
+        document.getElementById('humid-slider').addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            document.getElementById('humid-value').textContent = value.toFixed(1);
+        });
+
+        // Генерация случайного сида
+        document.getElementById('random-seed-btn').addEventListener('click', () => {
+            const randomSeed = Math.floor(Math.random() * 4294967295);
+            document.getElementById('seed-input').value = randomSeed;
+            logDebug(`🎲 Random seed: ${randomSeed}`);
+        });
+
+        // Основная кнопка генерации
         document.getElementById('generate-btn').addEventListener('click', async () => {
             const overlay = document.getElementById('canvas-overlay');
             overlay.style.display = 'flex';
-            updateStatus('⏳', 'Generating heightmap...');
-            logDebug('🚀 Starting heightmap generation...');
 
             try {
-                // Генерируем карту (фиксированные параметры для теста)
-                const result = await generate_heightmap_simple(42, 800, 400);
-                logDebug(`✅ Heightmap generated: ${result.width}x${result.height}`);
+                // Сбор параметров из формы
+                const config = {
+                    seed: parseInt(document.getElementById('seed-input').value),
+                    width: parseInt(document.getElementById('width-input').value),
+                    height: parseInt(document.getElementById('height-input').value),
+                    globalTemperatureOffset: parseFloat(document.getElementById('temp-slider').value),
+                    globalHumidityOffset: parseFloat(document.getElementById('humid-slider').value),
+                };
 
-                // Рендерим на канвас
+                // Валидация
+                if (isNaN(config.seed) || config.seed < 0 || config.seed > 4294967295) {
+                    throw new Error('Invalid seed value (must be 0-4294967295)');
+                }
+                if (config.width < 256 || config.width > 1024) {
+                    throw new Error('Width must be between 256 and 1024');
+                }
+                if (config.height < 128 || config.height > 512) {
+                    throw new Error('Height must be between 128 and 512');
+                }
+
+                logDebug(`🚀 Generating world with config:`);
+                logDebug(`   Seed: ${config.seed}`);
+                logDebug(`   Size: ${config.width}x${config.height}`);
+                logDebug(`   Temperature: ${config.globalTemperatureOffset}`);
+                logDebug(`   Humidity: ${config.globalHumidityOffset}`);
+
+                updateStatus('⏳', 'Generating world...');
+
+                // Вызов генерации с конфигурацией
+                const result = await generate_world_with_config(config);
+
+                logDebug(`✅ World generated: ${result.width}x${result.height}`);
+                currentWorldData = result;
+
+                // Рендеринг
                 renderHeightmap(result);
 
-                updateStatus('🟢', 'Heightmap generated successfully!');
+                updateStatus('🟢', `World generated successfully! Seed: ${config.seed}`);
+
             } catch (error) {
                 updateStatus('🔴', 'Generation failed');
-                logDebug(`❌ Generation error: ${error.message}`);
+                logDebug(`❌ Error: ${error.message}`);
                 console.error('Generation failed:', error);
+                alert(`Generation failed: ${error.message}`);
             } finally {
                 overlay.style.display = 'none';
             }
@@ -133,21 +248,26 @@
         function renderHeightmap(data) {
             if (!ctx) return;
 
-            // ПРОВЕРКА: убедимся, что данные корректны
+            // Проверка корректности данных
             if (typeof data.width !== 'number' || typeof data.height !== 'number') {
-                console.error('Invalid heightmap data:', data);
-                alert('Ошибка: получены некорректные данные карты');
+                console.error('Invalid heightmap ', data);
+                alert('Error: received invalid map data');
                 return;
             }
 
-            const imgData = ctx.createImageData(data.width, data.height);
-            const pixels = imgData.data;
+            // Создаём временное изображение с размерами data.width x data.height
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = data.width;
+            tempCanvas.height = data.height;
 
-            // data.data — это Float32Array (не обычный массив!)
-            const heightValues = data.data; // Float32Array
+            // Рисуем карту на временном канвасе
+            const tempImgData = tempCtx.createImageData(data.width, data.height);
+            const pixels = tempImgData.data;
 
+            const heightValues = data.data;
             for (let i = 0; i < heightValues.length; i++) {
-                const h = heightValues[i]; // Значение 0.0..1.0
+                const h = heightValues[i];
                 const idx = i * 4;
                 const val = Math.floor(h * 255);
                 pixels[idx] = val;     // R
@@ -155,9 +275,27 @@
                 pixels[idx + 2] = val; // B
                 pixels[idx + 3] = 255; // A
             }
+            tempCtx.putImageData(tempImgData, 0, 0);
 
-            ctx.putImageData(imgData, 0, 0);
-            logDebug(`🎨 Heightmap rendered: ${data.width}x${data.height} (${heightValues.length} pixels)`);
+            // Масштабируем временный канвас на основной канвас
+            const scale = Math.min(
+                ctx.canvas.width / data.width,
+                ctx.canvas.height / data.height
+            );
+
+            const scaledWidth = data.width * scale;
+            const scaledHeight = data.height * scale;
+            const x = (ctx.canvas.width - scaledWidth) / 2;
+            const y = (ctx.canvas.height - scaledHeight) / 2;
+
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.drawImage(
+                tempCanvas,
+                0, 0, data.width, data.height,
+                x, y, scaledWidth, scaledHeight
+            );
+
+            logDebug(`🎨 Heightmap rendered: ${data.width}x${data.height} → ${scaledWidth}x${scaledHeight} (scale: ${scale.toFixed(2)})`);
         }
 
         // Запускаем инициализацию при загрузке страницы

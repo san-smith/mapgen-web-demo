@@ -17,7 +17,7 @@ body {
 }
 
 .container {
-  max-width: 1000px;
+  max-width: 1600px;
   margin: 0 auto;
   background: white;
   border-radius: 16px;
@@ -42,62 +42,40 @@ header p {
   opacity: 0.9;
 }
 
-main {
-  padding: 30px;
-}
-
-.status {
+/* ДВУХКОЛОНОЧНЫЙ МАКЕТ */
+.main-layout {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 15px;
+  flex-direction: row;
+  height: calc(100vh - 200px); /* Высота окна - верхние элементы */
+  min-height: 500px;
+}
+
+/* ОБЛАСТЬ КАРТЫ */
+.map-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
   background: #f8f9fa;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  font-size: 1.1rem;
+  overflow: hidden;
 }
 
-.status-icon {
-  font-size: 1.5rem;
-}
-
-button {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  font-size: 1rem;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin: 5px;
-  font-weight: 600;
-}
-
-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-}
-
-button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
+/* КОНТЕЙНЕР КАРТЫ */
 .canvas-container {
   position: relative;
-  margin: 20px 0;
   border: 2px solid #e0e0e0;
   border-radius: 8px;
   overflow: hidden;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
 }
 
 canvas {
   display: block;
-  width: 100%;
-  height: auto;
+  background: #f8f9fa;
 }
 
 .canvas-overlay {
@@ -139,6 +117,140 @@ canvas {
   font-weight: 600;
 }
 
+/* ПАНЕЛЬ УПРАВЛЕНИЯ */
+.control-panel {
+  width: 350px; /* Фиксированная ширина панели */
+  background: white;
+  border-left: 2px solid #e0e0e0;
+  padding: 20px;
+  overflow-y: auto; /* Прокрутка при большом количестве элементов */
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.control-group label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 600;
+  color: #555;
+}
+
+.label-text {
+  min-width: 100px;
+  font-size: 0.95rem;
+}
+
+.control-group input[type="number"],
+.control-group input[type="range"] {
+  width: 100%;
+  padding: 8px 12px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+}
+
+.control-group input[type="number"]:focus,
+.control-group input[type="range"]:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.control-group input[type="range"] {
+  height: 8px;
+  border-radius: 4px;
+  background: #e0e0e0;
+  outline: none;
+  transition: background 0.3s;
+}
+
+.control-group input[type="range"]::-webkit-slider-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #667eea;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.2s;
+}
+
+.control-group input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.value-display {
+  min-width: 40px;
+  text-align: right;
+  font-weight: bold;
+  color: #667eea;
+}
+
+.primary-btn {
+  padding: 14px 28px;
+  font-size: 1.1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 700;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  width: 100%;
+}
+
+.primary-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.primary-btn:active {
+  transform: translateY(0);
+}
+
+.secondary-btn {
+  padding: 10px 16px;
+  background: #e0e0e0;
+  color: #555;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.secondary-btn:hover {
+  background: #d0d0d0;
+  transform: scale(1.05);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 1.1rem;
+}
+
+.status-icon {
+  font-size: 1.5rem;
+}
+
 .debug {
   margin-top: 20px;
   padding: 15px;
@@ -166,4 +278,18 @@ footer a {
 
 footer a:hover {
   text-decoration: underline;
+}
+
+/* АДАПТИВНОСТЬ */
+@media (max-width: 1024px) {
+  .main-layout {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .control-panel {
+    width: 100%;
+    border-left: none;
+    border-top: 2px solid #e0e0e0;
+  }
 }
