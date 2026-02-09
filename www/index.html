@@ -33,6 +33,16 @@
                 </div>
 
                 <div class="debug" id="debug"></div>
+
+                <div class="info-panel" id="info-panel">
+                    <div class="info-header">
+                        <h3>Province Information</h3>
+                        <button id="close-info-btn" class="close-btn">×</button>
+                    </div>
+                    <div class="info-content" id="info-content">
+                        <p>Click on the map to see province details.</p>
+                    </div>
+                </div>
             </div>
 
             <!-- Правая колонка: панель управления -->
@@ -80,6 +90,26 @@
                     <button id="generate-btn" class="primary-btn">Generate World</button>
                     <button id="random-seed-btn" class="secondary-btn">🎲 Random Seed</button>
                 </div>
+
+                <div class="layer-selector">
+                    <h3 style="margin-bottom: 15px; color: #555;">🗺️ Map Layers</h3>
+                    <div class="layer-option">
+                        <input type="radio" id="layer-heightmap" name="map-layer" value="heightmap" checked>
+                        <label for="layer-heightmap">Heightmap</label>
+                    </div>
+                    <div class="layer-option">
+                        <input type="radio" id="layer-biomes" name="map-layer" value="biomes">
+                        <label for="layer-biomes">Biomes</label>
+                    </div>
+                    <div class="layer-option">
+                        <input type="radio" id="layer-provinces" name="map-layer" value="provinces">
+                        <label for="layer-provinces">Provinces</label>
+                    </div>
+                    <div class="layer-option">
+                        <input type="radio" id="layer-regions" name="map-layer" value="regions">
+                        <label for="layer-regions">Regions</label>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -95,7 +125,6 @@
         // Импортируем функции из нашего WASM-модуля
         import init, {
             greet,
-            generate_heightmap_simple,
             generate_world_with_config
         } from './mapgen.js';
 
@@ -105,41 +134,46 @@
         const statusEl = document.getElementById('status');
         const debugEl = document.getElementById('debug');
 
-        function handleResize() {
-            const canvas = document.getElementById('map-canvas');
-            const container = document.querySelector('.canvas-container');
+        // Глобальные переменные для зума
+        let zoomLevel = 1.0;
+        let zoomCenter = { x: 0, y: 0 };
+        const MIN_ZOOM = 0.5;
+        const MAX_ZOOM = 3.0;
 
-            // УСТАНАВЛИВАЕМ ЛОГИЧЕСКИЕ РАЗМЕРЫ КАНВАСА РАВНЫМИ РАЗМЕРАМ КОНТЕЙНЕРА
-            canvas.width = container.clientWidth;
-            canvas.height = container.clientHeight;
+        let provinceColors = new Map();
+        let regionColors = new Map();
 
-            // Перерисовываем карту только если она существует
-            if (currentWorldData) {
-                renderHeightmap(currentWorldData);
-            }
+        // Генерация цвета по ID
+        function getColorFromId(id) {
+            const hash = id * 1103515245 + 12345;
+            const r = (hash >> 16) % 156 + 50;
+            const g = (hash >> 8) % 156 + 50;
+            const b = hash % 156 + 50;
+            return [r, g, b];
         }
 
-        window.addEventListener('resize', handleResize);
-        handleResize();
+        // Текущий слой
+        let currentLayer = 'heightmap';
 
         // Инициализация приложения
         async function initApp() {
             updateStatus('🟡', 'Initializing WASM module...');
 
             try {
-                // Загружаем и инициализируем WASM
                 await init();
-
                 updateStatus('🟢', 'WASM module loaded successfully!');
                 logDebug('✅ WASM initialized');
 
-                // Инициализируем канвас
                 canvas = document.getElementById('map-canvas');
                 ctx = canvas.getContext('2d');
 
-                // Тестируем связь с WASM
                 const greeting = greet('Browser');
                 logDebug(`💬 ${greeting}`);
+
+                // Настройка обработчиков событий
+                setupEventListeners();
+                handleResize();
+                window.addEventListener('resize', handleResize);
 
             } catch (error) {
                 updateStatus('🔴', 'Failed to load WASM module');
@@ -148,54 +182,56 @@
             }
         }
 
-        // Обновление статуса
-        function updateStatus(icon, text) {
-            statusEl.querySelector('.status-icon').textContent = icon;
-            statusEl.querySelector('.status-text').textContent = text;
-        }
-
-        // Логирование в отладочную панель
-        function logDebug(message) {
-            const timestamp = new Date().toLocaleTimeString('en-US', {
-                hour12: false,
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
+        function setupEventListeners() {
+            // Переключение слоёв
+            document.querySelectorAll('input[name="map-layer"]').forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    currentLayer = e.target.value;
+                    logDebug(`🗺️ Layer changed to: ${currentLayer}`);
+                    if (currentWorldData) {
+                        renderMap(currentWorldData);
+                    }
+                });
             });
 
-            const isWarning = message.includes('⚠️') || message.includes('Error');
-            const isError = message.includes('❌') || message.includes('failed');
-            const color = isError ? '#dc3545' : isWarning ? '#ffc107' : '#28a745';
+            // Ползунки
+            document.getElementById('temp-slider').addEventListener('input', (e) => {
+                document.getElementById('temp-value').textContent = parseFloat(e.target.value).toFixed(1);
+            });
+            document.getElementById('humid-slider').addEventListener('input', (e) => {
+                document.getElementById('humid-value').textContent = parseFloat(e.target.value).toFixed(1);
+            });
 
-            debugEl.innerHTML += `<span style="color: ${color};">[${timestamp}] ${message}</span><br>`;
-            debugEl.scrollTop = debugEl.scrollHeight;
+            // Кнопки
+            document.getElementById('random-seed-btn').addEventListener('click', () => {
+                const randomSeed = Math.floor(Math.random() * 4294967295);
+                document.getElementById('seed-input').value = randomSeed;
+                logDebug(`🎲 Random seed: ${randomSeed}`);
+            });
+
+            document.getElementById('generate-btn').addEventListener('click', generateWorld);
+            document.getElementById('close-info-btn').addEventListener('click', () => {
+                document.getElementById('info-panel').style.display = 'none';
+            });
+
+            // Зум и клик
+            canvas.addEventListener('wheel', handleZoom);
+            canvas.addEventListener('click', handleMapClick);
         }
 
-        // Обновление отображения значений ползунков
-        document.getElementById('temp-slider').addEventListener('input', (e) => {
-            const value = parseFloat(e.target.value);
-            document.getElementById('temp-value').textContent = value.toFixed(1);
-        });
+        function handleResize() {
+            if (!canvas) return;
+            const container = document.querySelector('.canvas-container');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            if (currentWorldData) renderMap(currentWorldData);
+        }
 
-        document.getElementById('humid-slider').addEventListener('input', (e) => {
-            const value = parseFloat(e.target.value);
-            document.getElementById('humid-value').textContent = value.toFixed(1);
-        });
-
-        // Генерация случайного сида
-        document.getElementById('random-seed-btn').addEventListener('click', () => {
-            const randomSeed = Math.floor(Math.random() * 4294967295);
-            document.getElementById('seed-input').value = randomSeed;
-            logDebug(`🎲 Random seed: ${randomSeed}`);
-        });
-
-        // Основная кнопка генерации
-        document.getElementById('generate-btn').addEventListener('click', async () => {
+        async function generateWorld() {
             const overlay = document.getElementById('canvas-overlay');
             overlay.style.display = 'flex';
 
             try {
-                // Сбор параметров из формы
                 const config = {
                     seed: parseInt(document.getElementById('seed-input').value),
                     width: parseInt(document.getElementById('width-input').value),
@@ -208,31 +244,20 @@
                 if (isNaN(config.seed) || config.seed < 0 || config.seed > 4294967295) {
                     throw new Error('Invalid seed value (must be 0-4294967295)');
                 }
-                if (config.width < 256 || config.width > 1024) {
-                    throw new Error('Width must be between 256 and 1024');
-                }
-                if (config.height < 128 || config.height > 512) {
-                    throw new Error('Height must be between 128 and 512');
-                }
+                if (config.width < 256 || config.width > 1024) throw new Error('Width must be 256-1024');
+                if (config.height < 128 || config.height > 512) throw new Error('Height must be 128-512');
 
-                logDebug(`🚀 Generating world with config:`);
-                logDebug(`   Seed: ${config.seed}`);
-                logDebug(`   Size: ${config.width}x${config.height}`);
-                logDebug(`   Temperature: ${config.globalTemperatureOffset}`);
-                logDebug(`   Humidity: ${config.globalHumidityOffset}`);
+                logDebug(`🚀 Generating world:`);
+                logDebug(`   Seed: ${config.seed}, Size: ${config.width}x${config.height}`);
+                logDebug(`   Temp: ${config.globalTemperatureOffset}, Humidity: ${config.globalHumidityOffset}`);
 
                 updateStatus('⏳', 'Generating world...');
-
-                // Вызов генерации с конфигурацией
                 const result = await generate_world_with_config(config);
 
                 logDebug(`✅ World generated: ${result.width}x${result.height}`);
                 currentWorldData = result;
-
-                // Рендеринг
-                renderHeightmap(result);
-
-                updateStatus('🟢', `World generated successfully! Seed: ${config.seed}`);
+                renderMap(result);
+                updateStatus('🟢', `Generated! Seed: ${config.seed}`);
 
             } catch (error) {
                 updateStatus('🔴', 'Generation failed');
@@ -242,63 +267,379 @@
             } finally {
                 overlay.style.display = 'none';
             }
-        });
+        }
 
-        // Рендеринг карты высот на канвас
-        function renderHeightmap(data) {
-            if (!ctx) return;
+        function renderMap(data) {
+            if (!ctx || !data) return;
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.save();
 
-            // Проверка корректности данных
-            if (typeof data.width !== 'number' || typeof data.height !== 'number') {
-                console.error('Invalid heightmap ', data);
-                alert('Error: received invalid map data');
+            const centerX = zoomCenter.x * ctx.canvas.width;
+            const centerY = zoomCenter.y * ctx.canvas.height;
+            ctx.translate(centerX, centerY);
+            ctx.scale(zoomLevel, zoomLevel);
+            ctx.translate(-centerX, -centerY);
+
+            switch (currentLayer) {
+                case 'heightmap': renderHeightmapLayer(data); break;
+                case 'biomes': renderBiomesLayer(data); break;
+                case 'provinces': renderProvincesLayer(data); break;
+                case 'regions': renderRegionsLayer(data); break;
+            }
+
+            ctx.restore();
+        }
+
+        function renderHeightmapLayer(data) {
+            if (!data.heightmap) {
+                logDebug('⚠️ Heightmap data missing');
                 return;
             }
 
-            // Создаём временное изображение с размерами data.width x data.height
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
             tempCanvas.width = data.width;
             tempCanvas.height = data.height;
 
-            // Рисуем карту на временном канвасе
-            const tempImgData = tempCtx.createImageData(data.width, data.height);
-            const pixels = tempImgData.data;
+            const imgData = tempCtx.createImageData(data.width, data.height);
+            const pixels = imgData.data;
+            const heightValues = data.heightmap; // Float32Array
 
-            const heightValues = data.data;
             for (let i = 0; i < heightValues.length; i++) {
                 const h = heightValues[i];
                 const idx = i * 4;
                 const val = Math.floor(h * 255);
-                pixels[idx] = val;     // R
-                pixels[idx + 1] = val; // G
-                pixels[idx + 2] = val; // B
-                pixels[idx + 3] = 255; // A
+                pixels[idx] = val;
+                pixels[idx + 1] = val;
+                pixels[idx + 2] = val;
+                pixels[idx + 3] = 255;
             }
-            tempCtx.putImageData(tempImgData, 0, 0);
+            tempCtx.putImageData(imgData, 0, 0);
 
-            // Масштабируем временный канвас на основной канвас
-            const scale = Math.min(
-                ctx.canvas.width / data.width,
-                ctx.canvas.height / data.height
-            );
+            const scale = Math.min(ctx.canvas.width / data.width, ctx.canvas.height / data.height);
+            const scaledW = data.width * scale;
+            const scaledH = data.height * scale;
+            const x = (ctx.canvas.width - scaledW) / 2;
+            const y = (ctx.canvas.height - scaledH) / 2;
 
-            const scaledWidth = data.width * scale;
-            const scaledHeight = data.height * scale;
-            const x = (ctx.canvas.width - scaledWidth) / 2;
-            const y = (ctx.canvas.height - scaledHeight) / 2;
-
-            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-            ctx.drawImage(
-                tempCanvas,
-                0, 0, data.width, data.height,
-                x, y, scaledWidth, scaledHeight
-            );
-
-            logDebug(`🎨 Heightmap rendered: ${data.width}x${data.height} → ${scaledWidth}x${scaledHeight} (scale: ${scale.toFixed(2)})`);
+            ctx.drawImage(tempCanvas, 0, 0, data.width, data.height, x, y, scaledW, scaledH);
+            logDebug(`🎨 Heightmap: ${data.width}x${data.height} → ${scaledW.toFixed(0)}x${scaledH.toFixed(0)}`);
         }
 
-        // Запускаем инициализацию при загрузке страницы
+        function renderBiomesLayer(data) {
+            if (!data.biomes) {
+                ctx.fillStyle = '#888';
+                ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                ctx.fillStyle = 'white';
+                ctx.font = '20px Arial';
+                ctx.fillText('Biomes data not available', 50, ctx.canvas.height / 2);
+                return;
+            }
+
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = data.width;
+            tempCanvas.height = data.height;
+
+            const imgData = tempCtx.createImageData(data.width, data.height);
+            const pixels = imgData.data;
+            const biomeValues = data.biomes; // Uint32Array
+
+            // Цвета биомов (соответствуют библиотеке)
+            const biomeColors = [
+                [0, 30, 80],    // DeepOcean
+                [0, 70, 140],   // Ocean
+                [120, 180, 220],// IcyOcean
+                [180, 200, 220],// FrozenOcean
+                [220, 230, 255],// Ice
+                [200, 210, 190],// Tundra
+                [80, 120, 80],  // Taiga
+                [60, 140, 60],  // TemperateForest
+                [30, 100, 30],  // TropicalRainforest
+                [140, 190, 100],// Grassland
+                [160, 150, 100],// Shrubland
+                [190, 170, 100],// Savanna
+                [220, 200, 150],// Desert
+                [70, 110, 60],  // Swamp
+                [140, 140, 140],// RockyMountain
+                [200, 220, 240],// GlacialMountain
+            ];
+
+            for (let i = 0; i < biomeValues.length; i++) {
+                const biomeId = biomeValues[i];
+                const color = biomeColors[biomeId] || [0, 0, 0];
+                const idx = i * 4;
+                pixels[idx] = color[0];
+                pixels[idx + 1] = color[1];
+                pixels[idx + 2] = color[2];
+                pixels[idx + 3] = 255;
+            }
+            tempCtx.putImageData(imgData, 0, 0);
+
+            const scale = Math.min(ctx.canvas.width / data.width, ctx.canvas.height / data.height);
+            const scaledW = data.width * scale;
+            const scaledH = data.height * scale;
+            const x = (ctx.canvas.width - scaledW) / 2;
+            const y = (ctx.canvas.height - scaledH) / 2;
+
+            ctx.drawImage(tempCanvas, 0, 0, data.width, data.height, x, y, scaledW, scaledH);
+            logDebug(`🌿 Biomes rendered`);
+        }
+
+        // Визуализация провинций
+        function renderProvincesLayer(data) {
+            if (!data.provinces) {
+                ctx.fillStyle = '#888';
+                ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                ctx.fillStyle = 'white';
+                ctx.font = '20px Arial';
+                ctx.fillText('Provinces data not available', 50, ctx.canvas.height / 2);
+                return;
+            }
+
+            // Создаем временный канвас
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = data.width;
+            tempCanvas.height = data.height;
+
+            // Создаем изображение
+            const imgData = tempCtx.createImageData(data.width, data.height);
+            const pixels = imgData.data;
+            const provinceIds = data.provinces; // Uint32Array
+
+            // Создаем карту цветов для провинций
+            provinceColors = new Map();
+            for (let i = 0; i < provinceIds.length; i++) {
+                const id = provinceIds[i];
+                if (!provinceColors.has(id)) {
+                    provinceColors.set(id, getColorFromId(id));
+                }
+            }
+
+            // Заполняем пиксели
+            for (let i = 0; i < provinceIds.length; i++) {
+                const id = provinceIds[i];
+                const color = provinceColors.get(id);
+                const idx = i * 4;
+                pixels[idx] = color[0];
+                pixels[idx + 1] = color[1];
+                pixels[idx + 2] = color[2];
+                pixels[idx + 3] = 255; // Альфа-канал
+            }
+
+            tempCtx.putImageData(imgData, 0, 0);
+
+            // Масштабируем и рисуем на основном канвасе
+            const scale = Math.min(ctx.canvas.width / data.width, ctx.canvas.height / data.height);
+            const scaledW = data.width * scale;
+            const scaledH = data.height * scale;
+            const x = (ctx.canvas.width - scaledW) / 2;
+            const y = (ctx.canvas.height - scaledH) / 2;
+
+            ctx.drawImage(tempCanvas, 0, 0, data.width, data.height, x, y, scaledW, scaledH);
+            logDebug(`📍 Provinces rendered: ${new Set(provinceIds).size} provinces`);
+        }
+
+        // Визуализация регионов
+        function renderRegionsLayer(data) {
+            if (!data.regions) {
+                ctx.fillStyle = '#888';
+                ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                ctx.fillStyle = 'white';
+                ctx.font = '20px Arial';
+                ctx.fillText('Regions data not available', 50, ctx.canvas.height / 2);
+                return;
+            }
+
+            // Создаем временный канвас
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = data.width;
+            tempCanvas.height = data.height;
+
+            // Создаем изображение
+            const imgData = tempCtx.createImageData(data.width, data.height);
+            const pixels = imgData.data;
+            const regionIds = data.regions; // Uint32Array
+
+            // Создаем карту цветов для регионов
+            regionColors = new Map();
+            for (let i = 0; i < regionIds.length; i++) {
+                const id = regionIds[i];
+                if (!regionColors.has(id)) {
+                    regionColors.set(id, getColorFromId(id));
+                }
+            }
+
+            // Заполняем пиксели
+            for (let i = 0; i < regionIds.length; i++) {
+                const id = regionIds[i];
+                const color = regionColors.get(id);
+                const idx = i * 4;
+                pixels[idx] = color[0];
+                pixels[idx + 1] = color[1];
+                pixels[idx + 2] = color[2];
+                pixels[idx + 3] = 255; // Альфа-канал
+            }
+
+            tempCtx.putImageData(imgData, 0, 0);
+
+            // Масштабируем и рисуем на основном канвасе
+            const scale = Math.min(ctx.canvas.width / data.width, ctx.canvas.height / data.height);
+            const scaledW = data.width * scale;
+            const scaledH = data.height * scale;
+            const x = (ctx.canvas.width - scaledW) / 2;
+            const y = (ctx.canvas.height - scaledH) / 2;
+
+            ctx.drawImage(tempCanvas, 0, 0, data.width, data.height, x, y, scaledW, scaledH);
+            logDebug(`📍 Regions rendered: ${new Set(regionIds).size} regions`);
+        }
+
+        function handleZoom(e) {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const delta = e.deltaY > 0 ? -0.1 : 0.1;
+            const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoomLevel + delta));
+            zoomCenter = { x: mouseX / canvas.width, y: mouseY / canvas.height };
+            zoomLevel = newZoom;
+
+            logDebug(`🔍 Zoom: ${zoomLevel.toFixed(2)}x`);
+            if (currentWorldData) renderMap(currentWorldData);
+        }
+
+        // Обработчик клика по карте
+        function handleMapClick(e) {
+            if (!currentWorldData) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / zoomLevel;
+            const y = (e.clientY - rect.top) / zoomLevel;
+
+            logDebug(`🖱️ Click at screen: (${x.toFixed(1)}, ${y.toFixed(1)})`);
+
+            // Преобразуем координаты в систему карты
+            const mapX = Math.floor(x);
+            const mapY = Math.floor(y);
+
+            // Проверяем, что координаты в пределах карты
+            if (mapX < 0 || mapX >= currentWorldData.width || mapY < 0 || mapY >= currentWorldData.height) {
+                logDebug('⚠️ Click outside map boundaries');
+                return;
+            }
+
+            // Найдем индекс пикселя
+            const index = mapY * currentWorldData.width + mapX;
+
+            // Определяем тип слоя и получаем информацию
+            let provinceInfo = null;
+            let regionInfo = null;
+
+            if (currentLayer === 'provinces' && currentWorldData.provinces) {
+                const provinceId = currentWorldData.provinces[index];
+                provinceInfo = {
+                    id: provinceId,
+                    name: `Province ${provinceId}`,
+                    type: "Continental",
+                    area: "N/A",
+                    coastal: "N/A",
+                    center: { x: "N/A", y: "N/A" }
+                };
+            }
+
+            if (currentLayer === 'regions' && currentWorldData.regions) {
+                const regionId = currentWorldData.regions[index];
+                regionInfo = {
+                    id: regionId,
+                    name: `Region ${regionId}`,
+                    color: regionColors.get(regionId),
+                    provinceCount: "N/A"
+                };
+            }
+
+            // Показываем информацию
+            showProvinceInfo({
+                ...provinceInfo,
+                ...regionInfo,
+                x: mapX,
+                y: mapY
+            });
+        }
+
+        // Показ информации о провинции
+        function showProvinceInfo(info) {
+            const panel = document.getElementById('info-panel');
+            const content = document.getElementById('info-content');
+
+            let html = '';
+
+            if (info.id !== undefined) {
+                html += `<p><strong>ID:</strong> ${info.id}</p>`;
+                html += `<p><strong>Coordinates:</strong> (${info.x}, ${info.y})</p>`;
+            }
+
+            if (info.name) {
+                html += `<p><strong>Name:</strong> ${info.name}</p>`;
+            }
+
+            if (info.type) {
+                html += `<p><strong>Type:</strong> ${info.type}</p>`;
+            }
+
+            if (info.area) {
+                html += `<p><strong>Area:</strong> ${info.area} pixels</p>`;
+            }
+
+            if (info.coastal !== undefined) {
+                html += `<p><strong>Coastal:</strong> ${info.coastal ? 'Yes' : 'No'}</p>`;
+            }
+
+            if (info.center) {
+                html += `<p><strong>Center:</strong> (${info.center.x?.toFixed(1) || 'N/A'}, ${info.center.y?.toFixed(1) || 'N/A'})</p>`;
+            }
+
+            if (info.color) {
+                const colorStr = `rgb(${info.color[0]}, ${info.color[1]}, ${info.color[2]})`;
+                html += `<p><strong>Color:</strong> <span style="background: ${colorStr}; width: 20px; height: 20px; display: inline-block;"></span> ${colorStr}</p>`;
+            }
+
+            if (info.provinceCount) {
+                html += `<p><strong>Provinces:</strong> ${info.provinceCount}</p>`;
+            }
+
+            if (html === '') {
+                html = '<p>Click on the map to see province details.</p>';
+            }
+
+            content.innerHTML = html;
+            panel.style.display = 'block';
+
+            // Добавляем анимацию для панели
+            panel.style.opacity = 0;
+            setTimeout(() => {
+                panel.style.opacity = 1;
+                panel.style.transform = 'translateY(0)';
+            }, 10);
+        }
+
+        // Вспомогательные функции
+        function updateStatus(icon, text) {
+            statusEl.querySelector('.status-icon').textContent = icon;
+            statusEl.querySelector('.status-text').textContent = text;
+        }
+
+        function logDebug(message) {
+            const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const isError = message.includes('❌') || message.includes('failed');
+            const color = isError ? '#dc3545' : '#28a745';
+            debugEl.innerHTML += `<span style="color:${color}">[${timestamp}] ${message}</span><br>`;
+            debugEl.scrollTop = debugEl.scrollHeight;
+        }
+
+        // Запуск приложения
         window.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
