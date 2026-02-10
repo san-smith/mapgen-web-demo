@@ -50,17 +50,52 @@
                 <h2 style="margin-bottom: 20px; color: #667eea;">🎛️ World Generator</h2>
 
                 <div class="controls">
+                    <!-- Seed -->
                     <div class="control-group">
                         <label for="seed-input">
                             <span class="label-text">Seed:</span>
-                            <input type="number" id="seed-input" value="42" min="0" max="4294967295">
+                            <input type="number" id="seed-input" value="42" min="0" max="4294967295" autocomplete="off">
+                        </label>
+                    </div>
+
+                    <!-- World Type -->
+                    <div class="control-group">
+                        <label for="world-type">
+                            <span class="label-text">World Type:</span>
+                            <select id="world-type" autocomplete="off">
+                                <option value="EarthLike">Earth Like (30% land)</option>
+                                <option value="Supercontinent">Supercontinent (70% land)</option>
+                                <option value="Archipelago">Archipelago (15% land)</option>
+                                <option value="Mediterranean">Mediterranean (25% land)</option>
+                                <option value="IceAgeEarth">Ice Age Earth (35% land)</option>
+                                <option value="DesertMediterranean">Desert Mediterranean (20% land)</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <!-- Map Size -->
+                    <div class="control-group">
+                        <label for="width-input">
+                            <span class="label-text">Width:</span>
+                            <input type="number" id="width-input" value="400" min="256" max="2048" step="64"
+                                autocomplete="off">
                         </label>
                     </div>
 
                     <div class="control-group">
+                        <label for="height-input">
+                            <span class="label-text">Height:</span>
+                            <input type="number" id="height-input" value="200" min="128" max="1024" step="64"
+                                autocomplete="off">
+                        </label>
+                    </div>
+
+                    <!-- Climate Parameters -->
+                    <div class="control-group">
                         <label for="temp-slider">
                             <span class="label-text">Temperature:</span>
-                            <input type="range" id="temp-slider" min="-1" max="1" step="0.1" value="0">
+                            <input type="range" id="temp-slider" min="-1" max="1" step="0.1" value="0"
+                                autocomplete="off">
                             <span class="value-display" id="temp-value">0.0</span>
                         </label>
                     </div>
@@ -68,45 +103,81 @@
                     <div class="control-group">
                         <label for="humid-slider">
                             <span class="label-text">Humidity:</span>
-                            <input type="range" id="humid-slider" min="-1" max="1" step="0.1" value="0">
+                            <input type="range" id="humid-slider" min="-1" max="1" step="0.1" value="0"
+                                autocomplete="off">
                             <span class="value-display" id="humid-value">0.0</span>
                         </label>
                     </div>
 
+                    <!-- Terrain Parameters -->
                     <div class="control-group">
-                        <label for="width-input">
-                            <span class="label-text">Width:</span>
-                            <input type="number" id="width-input" value="400" min="256" max="1024" step="64">
+                        <label for="total-provinces">
+                            <span class="label-text">Total Provinces:</span>
+                            <input type="number" id="total-provinces" value="120" min="20" max="500" step="10"
+                                autocomplete="off">
                         </label>
                     </div>
 
                     <div class="control-group">
-                        <label for="height-input">
-                            <span class="label-text">Height:</span>
-                            <input type="number" id="height-input" value="200" min="128" max="512" step="64">
+                        <label for="elevation-power">
+                            <span class="label-text">Elevation Power:</span>
+                            <input type="range" id="elevation-power" min="0.5" max="1.5" step="0.1" value="0.8"
+                                autocomplete="off">
+                            <span class="value-display" id="elevation-power-value">0.8</span>
                         </label>
                     </div>
 
+                    <div class="control-group">
+                        <label for="smooth-radius">
+                            <span class="label-text">Smooth Radius:</span>
+                            <input type="range" id="smooth-radius" min="0" max="5" step="1" value="1"
+                                autocomplete="off">
+                            <span class="value-display" id="smooth-radius-value">1</span>
+                        </label>
+                    </div>
+
+                    <!-- Island Parameters -->
+                    <div class="control-group">
+                        <label for="island-density">
+                            <span class="label-text">Island Density:</span>
+                            <input type="range" id="island-density" min="0" max="1" step="0.1" value="0.2"
+                                autocomplete="off">
+                            <span class="value-display" id="island-density-value">0.2</span>
+                        </label>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="min-island-size">
+                            <span class="label-text">Min Island Size:</span>
+                            <input type="number" id="min-island-size" value="200" min="50" max="1000" step="50"
+                                autocomplete="off">
+                        </label>
+                    </div>
+
+                    <!-- Action Buttons -->
                     <button id="generate-btn" class="primary-btn">Generate World</button>
                     <button id="random-seed-btn" class="secondary-btn">🎲 Random Seed</button>
+                    <button id="reset-btn" class="secondary-btn">↺ Reset to Defaults</button>
+                    <button id="reset-zoom-btn" class="secondary-btn">🔍 Reset Zoom</button>
                 </div>
 
                 <div class="layer-selector">
                     <h3 style="margin-bottom: 15px; color: #555;">🗺️ Map Layers</h3>
                     <div class="layer-option">
-                        <input type="radio" id="layer-heightmap" name="map-layer" value="heightmap" checked>
+                        <input type="radio" id="layer-heightmap" name="map-layer" value="heightmap" autocomplete="off">
                         <label for="layer-heightmap">Heightmap</label>
                     </div>
                     <div class="layer-option">
-                        <input type="radio" id="layer-biomes" name="map-layer" value="biomes">
+                        <input type="radio" id="layer-biomes" name="map-layer" value="biomes" checked
+                            autocomplete="off">
                         <label for="layer-biomes">Biomes</label>
                     </div>
                     <div class="layer-option">
-                        <input type="radio" id="layer-provinces" name="map-layer" value="provinces">
+                        <input type="radio" id="layer-provinces" name="map-layer" value="provinces" autocomplete="off">
                         <label for="layer-provinces">Provinces</label>
                     </div>
                     <div class="layer-option">
-                        <input type="radio" id="layer-regions" name="map-layer" value="regions">
+                        <input type="radio" id="layer-regions" name="map-layer" value="regions" autocomplete="off">
                         <label for="layer-regions">Regions</label>
                     </div>
                 </div>
@@ -140,23 +211,29 @@
         const MIN_ZOOM = 0.5;
         const MAX_ZOOM = 3.0;
 
-        let provinceColors = new Map();
-        let regionColors = new Map();
-
-        // Генерация цвета по ID
-        function getColorFromId(id) {
-            const hash = id * 1103515245 + 12345;
-            const r = (hash >> 16) % 156 + 50;
-            const g = (hash >> 8) % 156 + 50;
-            const b = hash % 156 + 50;
-            return [r, g, b];
-        }
-
         // Текущий слой
-        let currentLayer = 'heightmap';
+        let currentLayer = 'biomes';
+
+        // Значения по умолчанию
+        const DEFAULTS = {
+            seed: 42,
+            worldType: 'EarthLike',
+            width: 800,
+            height: 600,
+            temperature: 0.0,
+            humidity: 0.0,
+            totalProvinces: 120,
+            elevationPower: 0.8,
+            smoothRadius: 1,
+            islandDensity: 0.2,
+            minIslandSize: 200
+        };
 
         // Инициализация приложения
         async function initApp() {
+            // Сбрасываем форму на значения по умолчанию
+            resetFormToDefaults();
+
             updateStatus('🟡', 'Initializing WASM module...');
 
             try {
@@ -194,13 +271,12 @@
                 });
             });
 
-            // Ползунки
-            document.getElementById('temp-slider').addEventListener('input', (e) => {
-                document.getElementById('temp-value').textContent = parseFloat(e.target.value).toFixed(1);
-            });
-            document.getElementById('humid-slider').addEventListener('input', (e) => {
-                document.getElementById('humid-value').textContent = parseFloat(e.target.value).toFixed(1);
-            });
+            // Ползунки с обновлением значений
+            setupSlider('temp-slider', 'temp-value');
+            setupSlider('humid-slider', 'humid-value');
+            setupSlider('elevation-power', 'elevation-power-value');
+            setupSlider('smooth-radius', 'smooth-radius-value');
+            setupSlider('island-density', 'island-density-value');
 
             // Кнопки
             document.getElementById('random-seed-btn').addEventListener('click', () => {
@@ -209,6 +285,8 @@
                 logDebug(`🎲 Random seed: ${randomSeed}`);
             });
 
+            document.getElementById('reset-btn').addEventListener('click', resetFormToDefaults);
+            document.getElementById('reset-zoom-btn').addEventListener('click', resetZoom);
             document.getElementById('generate-btn').addEventListener('click', generateWorld);
             document.getElementById('close-info-btn').addEventListener('click', () => {
                 document.getElementById('info-panel').style.display = 'none';
@@ -217,6 +295,45 @@
             // Зум и клик
             canvas.addEventListener('wheel', handleZoom);
             canvas.addEventListener('click', handleMapClick);
+        }
+
+        function setupSlider(sliderId, valueId) {
+            const slider = document.getElementById(sliderId);
+            const valueEl = document.getElementById(valueId);
+            slider.addEventListener('input', (e) => {
+                valueEl.textContent = parseFloat(e.target.value).toFixed(1);
+            });
+        }
+
+        function resetFormToDefaults() {
+            document.getElementById('seed-input').value = DEFAULTS.seed;
+            document.getElementById('world-type').value = DEFAULTS.worldType;
+            document.getElementById('width-input').value = DEFAULTS.width;
+            document.getElementById('height-input').value = DEFAULTS.height;
+            document.getElementById('temp-slider').value = DEFAULTS.temperature;
+            document.getElementById('humid-slider').value = DEFAULTS.humidity;
+            document.getElementById('total-provinces').value = DEFAULTS.totalProvinces;
+            document.getElementById('elevation-power').value = DEFAULTS.elevationPower;
+            document.getElementById('smooth-radius').value = DEFAULTS.smoothRadius;
+            document.getElementById('island-density').value = DEFAULTS.islandDensity;
+            document.getElementById('min-island-size').value = DEFAULTS.minIslandSize;
+
+            // Обновляем отображение значений ползунков
+            document.getElementById('temp-value').textContent = DEFAULTS.temperature.toFixed(1);
+            document.getElementById('humid-value').textContent = DEFAULTS.humidity.toFixed(1);
+            document.getElementById('elevation-power-value').textContent = DEFAULTS.elevationPower.toFixed(1);
+            document.getElementById('smooth-radius-value').textContent = DEFAULTS.smoothRadius;
+            document.getElementById('island-density-value').textContent = DEFAULTS.islandDensity.toFixed(1);
+
+            logDebug('↺ Form reset to default values');
+        }
+
+        function resetZoom() {
+            zoomLevel = 1.0;
+            logDebug('🔍 Zoom reset to 1.0x');
+            if (currentWorldData) {
+                renderMap(currentWorldData);
+            }
         }
 
         function handleResize() {
@@ -232,24 +349,36 @@
             overlay.style.display = 'flex';
 
             try {
+                // Сбор всех параметров из формы
                 const config = {
                     seed: parseInt(document.getElementById('seed-input').value),
+                    worldType: document.getElementById('world-type').value,
                     width: parseInt(document.getElementById('width-input').value),
                     height: parseInt(document.getElementById('height-input').value),
                     globalTemperatureOffset: parseFloat(document.getElementById('temp-slider').value),
                     globalHumidityOffset: parseFloat(document.getElementById('humid-slider').value),
+                    totalProvinces: parseInt(document.getElementById('total-provinces').value),
+                    elevationPower: parseFloat(document.getElementById('elevation-power').value),
+                    smoothRadius: parseInt(document.getElementById('smooth-radius').value),
+                    islandDensity: parseFloat(document.getElementById('island-density').value),
+                    minIslandSize: parseInt(document.getElementById('min-island-size').value),
                 };
 
-                // Валидация
+                // Валидация с новыми лимитами
                 if (isNaN(config.seed) || config.seed < 0 || config.seed > 4294967295) {
                     throw new Error('Invalid seed value (must be 0-4294967295)');
                 }
-                if (config.width < 256 || config.width > 1024) throw new Error('Width must be 256-1024');
-                if (config.height < 128 || config.height > 512) throw new Error('Height must be 128-512');
+                if (config.width < 256 || config.width > 2048) throw new Error('Width must be 256-2048');
+                if (config.height < 128 || config.height > 1024) throw new Error('Height must be 128-1024');
+                if (config.totalProvinces < 20 || config.totalProvinces > 500) throw new Error('Provinces must be 20-500');
+                if (config.islandDensity < 0 || config.islandDensity > 1) throw new Error('Island density must be 0-1');
+                if (config.minIslandSize < 50 || config.minIslandSize > 1000) throw new Error('Min island size must be 50-1000');
 
                 logDebug(`🚀 Generating world:`);
-                logDebug(`   Seed: ${config.seed}, Size: ${config.width}x${config.height}`);
+                logDebug(`   Seed: ${config.seed}, Type: ${config.worldType}`);
+                logDebug(`   Size: ${config.width}x${config.height}, Provinces: ${config.totalProvinces}`);
                 logDebug(`   Temp: ${config.globalTemperatureOffset}, Humidity: ${config.globalHumidityOffset}`);
+                logDebug(`   Elevation: ${config.elevationPower}, Islands: ${config.islandDensity}`);
 
                 updateStatus('⏳', 'Generating world...');
                 const result = await generate_world_with_config(config);
@@ -257,7 +386,7 @@
                 logDebug(`✅ World generated: ${result.width}x${result.height}`);
                 currentWorldData = result;
                 renderMap(result);
-                updateStatus('🟢', `Generated! Seed: ${config.seed}`);
+                updateStatus('🟢', `Generated! Seed: ${config.seed}, Type: ${config.worldType}`);
 
             } catch (error) {
                 updateStatus('🔴', 'Generation failed');
@@ -268,6 +397,18 @@
                 overlay.style.display = 'none';
             }
         }
+
+        // Генерация цвета по ID
+        function getColorFromId(id) {
+            const hash = id * 1103515245 + 12345;
+            const r = (hash >> 16) % 156 + 50;
+            const g = (hash >> 8) % 156 + 50;
+            const b = hash % 156 + 50;
+            return [r, g, b];
+        }
+
+        let provinceColors = new Map();
+        let regionColors = new Map();
 
         function renderMap(data) {
             if (!ctx || !data) return;
@@ -303,7 +444,7 @@
 
             const imgData = tempCtx.createImageData(data.width, data.height);
             const pixels = imgData.data;
-            const heightValues = data.heightmap; // Float32Array
+            const heightValues = data.heightmap;
 
             for (let i = 0; i < heightValues.length; i++) {
                 const h = heightValues[i];
@@ -343,9 +484,8 @@
 
             const imgData = tempCtx.createImageData(data.width, data.height);
             const pixels = imgData.data;
-            const biomeValues = data.biomes; // Uint32Array
+            const biomeValues = data.biomes;
 
-            // Цвета биомов (соответствуют библиотеке)
             const biomeColors = [
                 [0, 30, 80],    // DeepOcean
                 [0, 70, 140],   // Ocean
@@ -386,7 +526,6 @@
             logDebug(`🌿 Biomes rendered`);
         }
 
-        // Визуализация провинций
         function renderProvincesLayer(data) {
             if (!data.provinces) {
                 ctx.fillStyle = '#888';
@@ -397,18 +536,15 @@
                 return;
             }
 
-            // Создаем временный канвас
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
             tempCanvas.width = data.width;
             tempCanvas.height = data.height;
 
-            // Создаем изображение
             const imgData = tempCtx.createImageData(data.width, data.height);
             const pixels = imgData.data;
-            const provinceIds = data.provinces; // Uint32Array
+            const provinceIds = data.provinces;
 
-            // Создаем карту цветов для провинций
             provinceColors = new Map();
             for (let i = 0; i < provinceIds.length; i++) {
                 const id = provinceIds[i];
@@ -417,7 +553,6 @@
                 }
             }
 
-            // Заполняем пиксели
             for (let i = 0; i < provinceIds.length; i++) {
                 const id = provinceIds[i];
                 const color = provinceColors.get(id);
@@ -425,12 +560,10 @@
                 pixels[idx] = color[0];
                 pixels[idx + 1] = color[1];
                 pixels[idx + 2] = color[2];
-                pixels[idx + 3] = 255; // Альфа-канал
+                pixels[idx + 3] = 255;
             }
-
             tempCtx.putImageData(imgData, 0, 0);
 
-            // Масштабируем и рисуем на основном канвасе
             const scale = Math.min(ctx.canvas.width / data.width, ctx.canvas.height / data.height);
             const scaledW = data.width * scale;
             const scaledH = data.height * scale;
@@ -441,7 +574,6 @@
             logDebug(`📍 Provinces rendered: ${new Set(provinceIds).size} provinces`);
         }
 
-        // Визуализация регионов
         function renderRegionsLayer(data) {
             if (!data.regions) {
                 ctx.fillStyle = '#888';
@@ -452,18 +584,15 @@
                 return;
             }
 
-            // Создаем временный канвас
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
             tempCanvas.width = data.width;
             tempCanvas.height = data.height;
 
-            // Создаем изображение
             const imgData = tempCtx.createImageData(data.width, data.height);
             const pixels = imgData.data;
-            const regionIds = data.regions; // Uint32Array
+            const regionIds = data.regions;
 
-            // Создаем карту цветов для регионов
             regionColors = new Map();
             for (let i = 0; i < regionIds.length; i++) {
                 const id = regionIds[i];
@@ -472,7 +601,6 @@
                 }
             }
 
-            // Заполняем пиксели
             for (let i = 0; i < regionIds.length; i++) {
                 const id = regionIds[i];
                 const color = regionColors.get(id);
@@ -480,12 +608,10 @@
                 pixels[idx] = color[0];
                 pixels[idx + 1] = color[1];
                 pixels[idx + 2] = color[2];
-                pixels[idx + 3] = 255; // Альфа-канал
+                pixels[idx + 3] = 255;
             }
-
             tempCtx.putImageData(imgData, 0, 0);
 
-            // Масштабируем и рисуем на основном канвасе
             const scale = Math.min(ctx.canvas.width / data.width, ctx.canvas.height / data.height);
             const scaledW = data.width * scale;
             const scaledH = data.height * scale;
@@ -511,74 +637,71 @@
             if (currentWorldData) renderMap(currentWorldData);
         }
 
-        // Обработчик клика по карте
         function handleMapClick(e) {
             if (!currentWorldData) return;
-
             const rect = canvas.getBoundingClientRect();
             const x = (e.clientX - rect.left) / zoomLevel;
             const y = (e.clientY - rect.top) / zoomLevel;
-
             logDebug(`🖱️ Click at screen: (${x.toFixed(1)}, ${y.toFixed(1)})`);
 
-            // Преобразуем координаты в систему карты
             const mapX = Math.floor(x);
             const mapY = Math.floor(y);
 
-            // Проверяем, что координаты в пределах карты
             if (mapX < 0 || mapX >= currentWorldData.width || mapY < 0 || mapY >= currentWorldData.height) {
                 logDebug('⚠️ Click outside map boundaries');
                 return;
             }
 
-            // Найдем индекс пикселя
             const index = mapY * currentWorldData.width + mapX;
+            let info = { x: mapX, y: mapY };
 
-            // Определяем тип слоя и получаем информацию
-            let provinceInfo = null;
-            let regionInfo = null;
+            // Определение типа провинции
+            let provinceType = "Unknown";
+            let isCoastal = false;
 
             if (currentLayer === 'provinces' && currentWorldData.provinces) {
                 const provinceId = currentWorldData.provinces[index];
-                provinceInfo = {
+                const provinceData = currentWorldData.provinceData?.find(p => p.id === provinceId);
+
+                if (provinceData) {
+                    provinceType = provinceData.isLand ? "Continental" : "Oceanic";
+                    isCoastal = provinceData.coastal;
+                }
+
+                info = {
+                    ...info,
                     id: provinceId,
                     name: `Province ${provinceId}`,
-                    type: "Continental",
-                    area: "N/A",
-                    coastal: "N/A",
-                    center: { x: "N/A", y: "N/A" }
+                    type: provinceType,
+                    area: provinceData ? `${provinceData.area} pixels` : "N/A",
+                    coastal: isCoastal,
+                    center: provinceData ? { x: provinceData.center[0], y: provinceData.center[1] } : { x: "N/A", y: "N/A" }
                 };
             }
 
             if (currentLayer === 'regions' && currentWorldData.regions) {
                 const regionId = currentWorldData.regions[index];
-                regionInfo = {
+                const regionData = currentWorldData.regionData?.find(r => r.id === regionId);
+
+                info = {
+                    ...info,
                     id: regionId,
-                    name: `Region ${regionId}`,
-                    color: regionColors.get(regionId),
-                    provinceCount: "N/A"
+                    name: regionData ? regionData.name : `Region ${regionId}`,
+                    color: regionData ? regionColors.get(regionId) : null
                 };
             }
 
-            // Показываем информацию
-            showProvinceInfo({
-                ...provinceInfo,
-                ...regionInfo,
-                x: mapX,
-                y: mapY
-            });
+            showProvinceInfo(info);
         }
 
-        // Показ информации о провинции
         function showProvinceInfo(info) {
             const panel = document.getElementById('info-panel');
             const content = document.getElementById('info-content');
 
-            let html = '';
+            let html = `<p><strong>Coordinates:</strong> (${info.x}, ${info.y})</p>`;
 
             if (info.id !== undefined) {
                 html += `<p><strong>ID:</strong> ${info.id}</p>`;
-                html += `<p><strong>Coordinates:</strong> (${info.x}, ${info.y})</p>`;
             }
 
             if (info.name) {
@@ -590,7 +713,7 @@
             }
 
             if (info.area) {
-                html += `<p><strong>Area:</strong> ${info.area} pixels</p>`;
+                html += `<p><strong>Area:</strong> ${info.area}</p>`;
             }
 
             if (info.coastal !== undefined) {
@@ -603,11 +726,7 @@
 
             if (info.color) {
                 const colorStr = `rgb(${info.color[0]}, ${info.color[1]}, ${info.color[2]})`;
-                html += `<p><strong>Color:</strong> <span style="background: ${colorStr}; width: 20px; height: 20px; display: inline-block;"></span> ${colorStr}</p>`;
-            }
-
-            if (info.provinceCount) {
-                html += `<p><strong>Provinces:</strong> ${info.provinceCount}</p>`;
+                html += `<p><strong>Color:</strong> <span style="background: ${colorStr}; width: 20px; height: 20px; display: inline-block; border: 1px solid #333;"></span> ${colorStr}</p>`;
             }
 
             if (html === '') {
@@ -616,23 +735,26 @@
 
             content.innerHTML = html;
             panel.style.display = 'block';
-
-            // Добавляем анимацию для панели
-            panel.style.opacity = 0;
+            panel.style.opacity = '0';
+            panel.style.transform = 'translateY(20px)';
             setTimeout(() => {
-                panel.style.opacity = 1;
+                panel.style.opacity = '1';
                 panel.style.transform = 'translateY(0)';
             }, 10);
         }
 
-        // Вспомогательные функции
         function updateStatus(icon, text) {
             statusEl.querySelector('.status-icon').textContent = icon;
             statusEl.querySelector('.status-text').textContent = text;
         }
 
         function logDebug(message) {
-            const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const timestamp = new Date().toLocaleTimeString('en-US', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
             const isError = message.includes('❌') || message.includes('failed');
             const color = isError ? '#dc3545' : '#28a745';
             debugEl.innerHTML += `<span style="color:${color}">[${timestamp}] ${message}</span><br>`;

@@ -5,10 +5,22 @@
 //! Все функции должны быть помечены #[wasm_bindgen].
 
 use js_sys::Float32Array;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
-use mapgen::{generate_heightmap, WorldGenerationParams, WorldType};
+use mapgen::{
+    biome::assign_biomes,
+    build_province_graph_with_map,
+    climate::{calculate_humidity, generate_climate_maps},
+    generate_heightmap,
+    province::{
+        generator::{generate_province_seeds, generate_provinces_from_seeds},
+        water::classify_water,
+    },
+    region::group_provinces_into_regions,
+    rivers::generate_rivers,
+    ClimateSettings, IslandSettings, TerrainSettings, WorldGenerationParams, WorldType,
+};
 
 /// Инициализация WASM-модуля
 ///
@@ -35,73 +47,38 @@ pub fn greet(name: &str) -> String {
     format!("Hello, {}! MapGen WASM is ready.", name)
 }
 
-/// Генерирует карту высот с минимальными параметрами
-///
-/// # Параметры
-/// * `seed` — сид для детерминированной генерации (u32)
-/// * `width` — ширина карты в пикселях
-/// * `height` — высота карты в пикселях
-///
-/// # Возвращает
-/// JavaScript-объект с полями:
-/// - `width: number` — ширина карты
-/// - `height: number` — высота карты
-/// - ` Float32Array` — массив высот (0.0..1.0)
-#[wasm_bindgen]
-pub fn generate_heightmap_simple(seed: u32, width: u32, height: u32) -> Result<JsValue, JsValue> {
-    // Создаём параметры генерации с настройками по умолчанию
-    let params = WorldGenerationParams {
-        seed: seed as u64,
-        width,
-        height,
-        world_type: WorldType::EarthLike,
-        ..Default::default()
-    };
-
-    // Генерируем карту высот
-    let heightmap = generate_heightmap(
-        params.seed,
-        params.width,
-        params.height,
-        params.world_type,
-        params.islands.island_density,
-        &params.terrain,
-    );
-
-    // Создаём результат для возврата в JavaScript
-    let result = js_sys::Object::new();
-
-    js_sys::Reflect::set(
-        &result,
-        &JsValue::from_str("width"),
-        &JsValue::from_f64(width as f64),
-    )
-    .map_err(|_| JsValue::from_str("Failed to set width"))?;
-
-    js_sys::Reflect::set(
-        &result,
-        &JsValue::from_str("height"),
-        &JsValue::from_f64(height as f64),
-    )
-    .map_err(|_| JsValue::from_str("Failed to set height"))?;
-
-    // Преобразуем данные в Float32Array для эффективной передачи
-    let data_array = Float32Array::from(&heightmap.data[..]);
-    js_sys::Reflect::set(&result, &JsValue::from_str("data"), &data_array.into())
-        .map_err(|_| JsValue::from_str("Failed to set data"))?;
-
-    Ok(result.into())
-}
-
 /// Конфигурация мира для генерации из браузера
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct WorldConfig {
     seed: u32,
+    world_type: String,
     width: u32,
     height: u32,
     global_temperature_offset: f32,
     global_humidity_offset: f32,
+    total_provinces: usize,
+    elevation_power: f32,
+    smooth_radius: usize,
+    island_density: f32,
+    min_island_size: u32,
+}
+
+/// Данные провинции для передачи в JavaScript
+#[derive(Serialize)]
+struct ProvinceData {
+    id: u32,
+    is_land: bool,
+    coastal: bool,
+    area: usize,
+    center: [f32; 2],
+}
+
+/// Данные региона для передачи в JavaScript
+#[derive(Serialize)]
+struct RegionData {
+    id: u32,
+    name: String,
 }
 
 /// Генерирует мир с полной конфигурацией
@@ -109,25 +86,73 @@ struct WorldConfig {
 /// # Параметры
 /// * `config_js` — JavaScript-объект с полями:
 ///   - `seed: number` (u32)
+///   - `worldType: string` (один из типов мира)
 ///   - `width: number` (u32)
 ///   - `height: number` (u32)
 ///   - `globalTemperatureOffset: number` (f32)
 ///   - `globalHumidityOffset: number` (f32)
+///   - `totalProvinces: number` (usize)
+///   - `elevationPower: number` (f32)
+///   - `smoothRadius: number` (usize)
+///   - `islandDensity: number` (f32)
+///   - `minIslandSize: number` (u32)
 ///
 /// # Возвращает
-/// Объект с полями `width`, `height`, `data` (Float32Array)
+/// Объект с полями:
+/// - `width`, `height` — размеры карты
+/// - `heightmap` — Float32Array высот
+/// - `biomes` — Uint32Array биомов
+/// - `provinces` — Uint32Array province_id
+/// - `regions` — Uint32Array region_id
+/// - `provinceData` — массив данных провинций
+/// - `regionData` — массив данных регионов
 #[wasm_bindgen]
 pub fn generate_world_with_config(config_js: JsValue) -> Result<JsValue, JsValue> {
+    // Десериализуем конфигурацию из JavaScript
     let config: WorldConfig = serde_wasm_bindgen::from_value(config_js)
         .map_err(|e| JsValue::from_str(&format!("Invalid config: {}", e)))?;
 
-    // Создаём параметры генерации
-    let mut params = WorldGenerationParams::default();
-    params.seed = config.seed as u64;
-    params.width = config.width;
-    params.height = config.height;
-    params.climate.global_temperature_offset = config.global_temperature_offset;
-    params.climate.global_humidity_offset = config.global_humidity_offset;
+    // Преобразуем тип мира из строки
+    let world_type = match config.world_type.as_str() {
+        "EarthLike" => WorldType::EarthLike,
+        "Supercontinent" => WorldType::Supercontinent,
+        "Archipelago" => WorldType::Archipelago,
+        "Mediterranean" => WorldType::Mediterranean,
+        "IceAgeEarth" => WorldType::IceAgeEarth,
+        "DesertMediterranean" => WorldType::DesertMediterranean,
+        _ => WorldType::EarthLike,
+    };
+
+    // Создаём параметры генерации с новыми настройками
+    let mut params = WorldGenerationParams {
+        seed: config.seed as u64,
+        width: config.width,
+        height: config.height,
+        world_type,
+        ..WorldGenerationParams::default()
+    };
+
+    // Климатические настройки
+    params.climate = ClimateSettings {
+        global_temperature_offset: config.global_temperature_offset,
+        global_humidity_offset: config.global_humidity_offset,
+        polar_amplification: 1.0,
+        climate_latitude_exponent: 0.65,
+    };
+
+    // Настройки островов
+    params.islands = IslandSettings {
+        island_density: config.island_density,
+        min_island_size: config.min_island_size,
+    };
+
+    // Настройки рельефа
+    params.terrain = TerrainSettings {
+        elevation_power: config.elevation_power,
+        smooth_radius: config.smooth_radius,
+        mountain_compression: 0.7,
+        total_provinces: config.total_provinces,
+    };
 
     // === ПОЛНЫЙ КОНВЕЙЕР ГЕНЕРАЦИИ ===
     let sea_level = 0.5;
@@ -143,7 +168,7 @@ pub fn generate_world_with_config(config_js: JsValue) -> Result<JsValue, JsValue
     );
 
     // 2. Генерация климата
-    let (temperature, winds) = mapgen::climate::generate_climate_maps(
+    let (temperature, winds) = generate_climate_maps(
         params.seed,
         params.width,
         params.height,
@@ -154,7 +179,7 @@ pub fn generate_world_with_config(config_js: JsValue) -> Result<JsValue, JsValue
         sea_level,
     );
 
-    let humidity = mapgen::climate::calculate_humidity(
+    let humidity = calculate_humidity(
         params.width,
         params.height,
         &heightmap.data,
@@ -164,13 +189,13 @@ pub fn generate_world_with_config(config_js: JsValue) -> Result<JsValue, JsValue
     );
 
     // 3. Назначение биомов
-    let biome_map = mapgen::biome::assign_biomes(&heightmap, &temperature, &humidity, sea_level);
+    let biome_map = assign_biomes(&heightmap, &temperature, &humidity, sea_level);
 
     // 4. Классификация воды
-    let water_type = mapgen::province::water::classify_water(&heightmap, sea_level);
+    let water_type = classify_water(&heightmap, sea_level);
 
     // 5. Генерация рек
-    let river_map = mapgen::rivers::generate_rivers(&heightmap, &biome_map);
+    let _river_map = generate_rivers(&heightmap, &biome_map);
 
     // 6. Генерация провинций
     let land_pixels = water_type
@@ -180,10 +205,10 @@ pub fn generate_world_with_config(config_js: JsValue) -> Result<JsValue, JsValue
     let total_pixels = (params.width * params.height) as usize;
     let land_ratio = land_pixels as f32 / total_pixels as f32;
 
-    let num_land = (params.terrain.total_provinces as f32 * 0.7).round() as usize;
-    let num_sea = params.terrain.total_provinces - num_land;
+    let num_land = (config.total_provinces as f32 * 0.7).round() as usize;
+    let num_sea = config.total_provinces - num_land;
 
-    let seeds = mapgen::province::generator::generate_province_seeds(
+    let seeds = generate_province_seeds(
         &heightmap,
         &biome_map,
         &water_type,
@@ -192,22 +217,14 @@ pub fn generate_world_with_config(config_js: JsValue) -> Result<JsValue, JsValue
         params.seed,
     );
 
-    let (provinces, pixel_to_id) = mapgen::province::generator::generate_provinces_from_seeds(
-        &heightmap,
-        &biome_map,
-        &water_type,
-        &seeds,
-    );
+    let (provinces, pixel_to_id) =
+        generate_provinces_from_seeds(&heightmap, &biome_map, &water_type, &seeds);
 
     // 7. Генерация регионов
-    let graph = mapgen::province::graph::build_province_graph_with_map(
-        &provinces,
-        &pixel_to_id,
-        params.width,
-        params.height,
-    );
+    let graph =
+        build_province_graph_with_map(&provinces, &pixel_to_id, params.width, params.height);
 
-    let regions = mapgen::region::group_provinces_into_regions(&provinces, &graph, 8);
+    let regions = group_provinces_into_regions(&provinces, &graph, 8);
 
     // === СОЗДАНИЕ РЕЗУЛЬТАТА ===
     let result = js_sys::Object::new();
@@ -220,7 +237,7 @@ pub fn generate_world_with_config(config_js: JsValue) -> Result<JsValue, JsValue
     )
     .map_err(|_| JsValue::from_str("Failed to set heightmap"))?;
 
-    // Биомы (целые числа)
+    // Биомы
     let biome_data: Vec<u32> = biome_map.data.iter().map(|&b| b as u32).collect();
     js_sys::Reflect::set(
         &result,
@@ -257,6 +274,41 @@ pub fn generate_world_with_config(config_js: JsValue) -> Result<JsValue, JsValue
         &js_sys::Uint32Array::from(&region_data[..]).into(),
     )
     .map_err(|_| JsValue::from_str("Failed to set regions"))?;
+
+    // Данные провинций
+    let province_data = provinces
+        .iter()
+        .map(|p| ProvinceData {
+            id: p.id,
+            is_land: p.is_land,
+            coastal: p.coastal,
+            area: p.area,
+            center: [p.center.0, p.center.1],
+        })
+        .collect::<Vec<_>>();
+
+    js_sys::Reflect::set(
+        &result,
+        &JsValue::from_str("provinceData"),
+        &serde_wasm_bindgen::to_value(&province_data).unwrap(),
+    )
+    .map_err(|_| JsValue::from_str("Failed to set provinceData"))?;
+
+    // Данные регионов
+    let region_data_js = regions
+        .iter()
+        .map(|r| RegionData {
+            id: r.id,
+            name: r.name.clone(),
+        })
+        .collect::<Vec<_>>();
+
+    js_sys::Reflect::set(
+        &result,
+        &JsValue::from_str("regionData"),
+        &serde_wasm_bindgen::to_value(&region_data_js).unwrap(),
+    )
+    .map_err(|_| JsValue::from_str("Failed to set regionData"))?;
 
     // Метаданные
     js_sys::Reflect::set(
