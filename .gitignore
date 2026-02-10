@@ -1,1 +1,16 @@
-/target
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# WASM build
+/pkg/
+/node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+debug.log

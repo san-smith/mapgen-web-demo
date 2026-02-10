@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "Web demo for mapgen procedural world generator"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/san-smith/mapgen-web-demo"
 
 [lib]
 crate-type = ["cdylib"]
