@@ -451,7 +451,7 @@ checksum = "bcc35a38544a891a5f7c865aca548a982ccb3b8650a5b06d0fd33a10283c56fc"
 [[package]]
 name = "mapgen"
 version = "0.1.0"
-source = "git+https://github.com/san-smith/mapgen?rev=092fd3a#092fd3aa02f191c4cc460ce9c6b590dd52d06bb6"
+source = "git+https://github.com/san-smith/mapgen?rev=790edfa#790edfac7bda417330fff4d912565a9b60fb498d"
 dependencies = [
  "clap",
  "fastnoise-lite",

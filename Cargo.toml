@@ -11,7 +11,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 # Собираем mapgen БЕЗ параллелизма (rayon несовместим с WASM)
-mapgen = { git="https://github.com/san-smith/mapgen", rev="092fd3a", default-features = false, features = ["wasm"] }
+mapgen = { git="https://github.com/san-smith/mapgen", rev="790edfa", default-features = false, features = ["wasm"] }
 
 # Обязательно для WASM: getrandom требует фичи "js"
 getrandom = { version = "0.2", features = ["js"] }
